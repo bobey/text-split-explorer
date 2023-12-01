@@ -1,7 +1,5 @@
 import streamlit as st
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter, Language
-import code_snippets as code_snippets
-import tiktoken
+from langchain.text_splitter import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter, CharacterTextSplitter, Language
 
 
 # Streamlit UI
@@ -36,82 +34,48 @@ with col3:
         "Length Function", ["Characters", "Tokens"]
     )
 
-splitter_choices = ["RecursiveCharacter", "Character"] + [str(v) for v in Language]
+splitter_choices = ["RecursiveCharacter", "Character", "RecursiveCharacter > Markdown"]
 
 with col4:
     splitter_choice = st.selectbox(
         "Select a Text Splitter", splitter_choices
     )
 
-if length_function == "Characters":
-    length_function = len
-    length_function_str = code_snippets.CHARACTER_LENGTH
-elif length_function == "Tokens":
-    enc = tiktoken.get_encoding("cl100k_base")
-
-
-    def length_function(text: str) -> int:
-        return len(enc.encode(text))
-
-
-    length_function_str = code_snippets.TOKEN_LENGTH
-else:
-    raise ValueError
-
-if splitter_choice == "Character":
-    import_text = code_snippets.CHARACTER.format(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        length_function=length_function_str
-    )
-
-elif splitter_choice == "RecursiveCharacter":
-    import_text = code_snippets.RECURSIVE_CHARACTER.format(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        length_function=length_function_str
-    )
-
-elif "Language." in splitter_choice:
-    import_text = code_snippets.LANGUAGE.format(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        language=splitter_choice,
-        length_function=length_function_str
-    )
-else:
-    raise ValueError
-
-st.info(import_text)
-
-# Box for pasting text
-doc = st.text_area("Paste your text here:")
+# Box for pasting Markdown
+markdown_document = st.text_area("Paste your Markdown document here:")
 
 # Split text button
 if st.button("Split Text"):
-    # Choose splitter
+    headers_to_split_on = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+    ]
+
+    # MD splits
+    markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+    md_header_splits = markdown_splitter.split_text(markdown_document)
+
     if splitter_choice == "Character":
-        splitter = CharacterTextSplitter(separator = "\n\n",
-                                         chunk_size=chunk_size, 
-                                         chunk_overlap=chunk_overlap,
-                                         length_function=length_function)
-    elif splitter_choice == "RecursiveCharacter":
-        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, 
-                                                  chunk_overlap=chunk_overlap,
-                                         length_function=length_function)
-    elif "Language." in splitter_choice:
-        language = splitter_choice.split(".")[1].lower()
-        splitter = RecursiveCharacterTextSplitter.from_language(language,
-                                                                chunk_size=chunk_size,
-                                                                chunk_overlap=chunk_overlap,
-                                         length_function=length_function)
-    else:
-        raise ValueError
-    # Split the text
-    splits = splitter.split_text(doc)
+        text_splitter = CharacterTextSplitter(
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
+
+    if splitter_choice == "RecursiveCharacter":
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
+
+    if splitter_choice == "RecursiveCharacter > Markdown":
+        text_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=Language.MARKDOWN, chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
+
+    # Split
+    splits = text_splitter.split_documents(md_header_splits)
 
     # Display the splits
     for idx, split in enumerate(splits, start=1):
         st.text_area(
-            f"Split {idx}", split, height=200
+            f"Split {idx}", split, height=300
         )
