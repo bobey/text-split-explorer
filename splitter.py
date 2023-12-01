@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain.text_splitter import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter, CharacterTextSplitter, Language
-
+import tiktoken
 
 # Streamlit UI
 st.title("Text Splitter Playground")
@@ -41,6 +41,17 @@ with col4:
         "Select a Text Splitter", splitter_choices
     )
 
+if length_function == "Characters":
+    length_function = len
+elif length_function == "Tokens":
+    enc = tiktoken.get_encoding("cl100k_base")
+
+    def length_function(text: str) -> int:
+        return len(enc.encode(text))
+else:
+    raise ValueError
+
+
 # Box for pasting Markdown
 markdown_document = st.text_area("Paste your Markdown document here:")
 
@@ -58,17 +69,17 @@ if st.button("Split Text"):
 
     if splitter_choice == "Character":
         text_splitter = CharacterTextSplitter(
-            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=length_function
         )
 
     if splitter_choice == "RecursiveCharacter":
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=length_function
         )
 
     if splitter_choice == "RecursiveCharacter > Markdown":
         text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=Language.MARKDOWN, chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            language=Language.MARKDOWN, chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=length_function
         )
 
     # Split
